@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/binatify/simple-wrk/loader"
 	"github.com/binatify/simple-wrk/util"
@@ -40,54 +39,39 @@ func main() {
 
 	fmt.Printf("Running %ds test @ %s\n", duration, testUrl)
 
-	statsAggregator := make(chan *loader.RequesterStats, goroutines)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt)
 
-	loadGen := loader.NewLoader(goroutines, duration, testUrl, statsAggregator)
-	loadGen.Run()
+	wrk := loader.NewLoader(goroutines, duration, testUrl)
 
-	responders := 0
-	aggStats := loader.RequesterStats{MinRequestTime: time.Minute}
-
-	for responders < goroutines {
+	go func() {
 		select {
 		case <-sigChan:
-			loadGen.Stop()
+			wrk.Stop()
 			fmt.Printf("stopping...\n")
-		case stats := <-statsAggregator:
-			aggStats.ErrRequests += stats.ErrRequests
-			aggStats.SuccessRequests += stats.SuccessRequests
-			aggStats.TotRespSize += stats.TotRespSize
-			aggStats.TotDuration += stats.TotDuration
-			aggStats.MaxRequestTime = util.MaxDuration(aggStats.MaxRequestTime, stats.MaxRequestTime)
-			aggStats.MinRequestTime = util.MinDuration(aggStats.MinRequestTime, stats.MinRequestTime)
-			responders++
 		}
-	}
+	}()
 
-	if aggStats.SuccessRequests == 0 {
+	wrk.Run()
+
+	totalStats := wrk.TotalStats()
+
+	if totalStats.SuccessRequests == 0 {
 		fmt.Println("Error: No statistics collected / no requests found")
 		return
 	}
 
-	avgThreadDur := aggStats.TotDuration / time.Duration(responders)
-
-	reqRate := float64(aggStats.SuccessRequests) / avgThreadDur.Seconds()
-	avgReqTime := aggStats.TotDuration / time.Duration(aggStats.SuccessRequests)
-	bytesRate := float64(aggStats.TotRespSize) / avgThreadDur.Seconds()
-
 	fmt.Printf("%v requests in %v, %v read\n",
-		aggStats.SuccessRequests,
-		avgThreadDur,
-		util.ByteSize(float64(aggStats.TotRespSize)))
+		totalStats.SuccessRequests,
+		totalStats.AvgThreadTime,
+		util.ByteSize(float64(totalStats.TotRespSize)))
 
 	fmt.Printf("Requests/sec:\t\t%.2f\nTransfer/sec:\t\t%v\nAvg Req Time:\t\t%v\n",
-		reqRate,
-		util.ByteSize(bytesRate),
-		avgReqTime)
+		totalStats.RequestRate,
+		util.ByteSize(totalStats.BytesRate),
+		totalStats.AvgRequestTime)
 
-	fmt.Printf("Fastest Request:\t%v\n", aggStats.MinRequestTime)
-	fmt.Printf("Slowest Request:\t%v\n", aggStats.MaxRequestTime)
-	fmt.Printf("Number of Errors:\t%v\n", aggStats.ErrRequests)
+	fmt.Printf("Fastest Request:\t%v\n", totalStats.MinRequestTime)
+	fmt.Printf("Slowest Request:\t%v\n", totalStats.MaxRequestTime)
+	fmt.Printf("Number of Errors:\t%v\n", totalStats.ErrRequests)
 }
