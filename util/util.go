@@ -41,17 +41,15 @@ func (this ByteSize) String() string {
 func MaxDuration(d1 time.Duration, d2 time.Duration) time.Duration {
 	if d1 > d2 {
 		return d1
-	} else {
-		return d2
 	}
+	return d2
 }
 
 func MinDuration(d1 time.Duration, d2 time.Duration) time.Duration {
 	if d1 < d2 {
 		return d1
-	} else {
-		return d2
 	}
+	return d2
 }
 
 func EstimateHttpHeadersSize(headers http.Header) (result int64) {

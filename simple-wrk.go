@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/binatify/simple-wrk/loader"
@@ -41,6 +42,7 @@ func main() {
 
 	statsAggregator := make(chan *loader.RequesterStats, goroutines)
 	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt)
 
 	loadGen := loader.NewLoader(goroutines, duration, testUrl, statsAggregator)
 
