@@ -45,10 +45,7 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt)
 
 	loadGen := loader.NewLoader(goroutines, duration, testUrl, statsAggregator)
-
-	for i := 0; i < goroutines; i++ {
-		go loadGen.Run()
-	}
+	loadGen.Run()
 
 	responders := 0
 	aggStats := loader.RequesterStats{MinRequestTime: time.Minute}
@@ -59,8 +56,8 @@ func main() {
 			loadGen.Stop()
 			fmt.Printf("stopping...\n")
 		case stats := <-statsAggregator:
-			aggStats.NumErrs += stats.NumErrs
-			aggStats.NumRequests += stats.NumRequests
+			aggStats.ErrRequests += stats.ErrRequests
+			aggStats.SuccessRequests += stats.SuccessRequests
 			aggStats.TotRespSize += stats.TotRespSize
 			aggStats.TotDuration += stats.TotDuration
 			aggStats.MaxRequestTime = util.MaxDuration(aggStats.MaxRequestTime, stats.MaxRequestTime)
@@ -69,21 +66,22 @@ func main() {
 		}
 	}
 
-	if aggStats.NumRequests == 0 {
+	if aggStats.SuccessRequests == 0 {
 		fmt.Println("Error: No statistics collected / no requests found")
 		return
 	}
 
 	avgThreadDur := aggStats.TotDuration / time.Duration(responders)
 
-	reqRate := float64(aggStats.NumRequests) / avgThreadDur.Seconds()
-	avgReqTime := aggStats.TotDuration / time.Duration(aggStats.NumRequests)
+	reqRate := float64(aggStats.SuccessRequests) / avgThreadDur.Seconds()
+	avgReqTime := aggStats.TotDuration / time.Duration(aggStats.SuccessRequests)
 	bytesRate := float64(aggStats.TotRespSize) / avgThreadDur.Seconds()
 
 	fmt.Printf("%v requests in %v, %v read\n",
-		aggStats.NumRequests,
+		aggStats.SuccessRequests,
 		avgThreadDur,
 		util.ByteSize(float64(aggStats.TotRespSize)))
+
 	fmt.Printf("Requests/sec:\t\t%.2f\nTransfer/sec:\t\t%v\nAvg Req Time:\t\t%v\n",
 		reqRate,
 		util.ByteSize(bytesRate),
@@ -91,5 +89,5 @@ func main() {
 
 	fmt.Printf("Fastest Request:\t%v\n", aggStats.MinRequestTime)
 	fmt.Printf("Slowest Request:\t%v\n", aggStats.MaxRequestTime)
-	fmt.Printf("Number of Errors:\t%v\n", aggStats.NumErrs)
+	fmt.Printf("Number of Errors:\t%v\n", aggStats.ErrRequests)
 }
