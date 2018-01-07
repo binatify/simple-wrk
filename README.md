@@ -25,18 +25,18 @@ Number of Errors:	0
 ## Architecture
 
 ```
-                                    --------
-                                   | Loader |
-                                    --------
-                                       | go
-                                       V
-                         --------             --------
-                        | Client |    ....   | Client |  
-                         --------             --------
-                                       | channel                         
-                                       V
-                                    --------    
-                                   | Summary | 
-                                    --------  
+              --------
+             | Loader |
+              --------
+                 | go
+                 V
+   --------             --------
+  | Client |    ....   | Client |  
+   --------             --------
+                 | channel                         
+                 V
+              --------    
+             | Summary | 
+              --------  
                                        
 ```
